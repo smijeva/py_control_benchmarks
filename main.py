@@ -77,10 +77,10 @@ def benchmark_model(model_file_path):
     attractor_vertices = [a.pick_vertex().vertices().vertices()[0] for a in find_attractors(witness)]
     logging.info(f"attractor count: {len(attractor_vertices)}")
 
-    for i, target in enumerate(attractor_vertices[:10]):
+    for i, target in enumerate(attractor_vertices[:8]):
         perturbation_graph = PerturbationGraph(boolean_network)
         colors = attractor_colors(target, perturbation_graph)
-        for j, source in enumerate(attractor_vertices[:10]):
+        for j, source in enumerate(attractor_vertices[:8]):
             if i == j:
                 continue
             one_step_time = measure(lambda: perturbation_graph.one_step_control(source, target, colors))
