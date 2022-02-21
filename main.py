@@ -15,15 +15,16 @@ from biodivine_aeon import *
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
-MODELS_DIR = 'control_models2'
-TIMEOUT_SECS = 10
+MODELS_DIR = 'control_models'
+TIMEOUT_SECS = 5
 
 
 def get_model_files():
     return [Path(join(MODELS_DIR, f)) for f in listdir(MODELS_DIR) if isfile(join(MODELS_DIR, f))]
 
 
-def attractor_colors(vertex: [bool], graph: SymbolicAsyncGraph):
+def attractor_colors(vertex: [bool], perturbation_graph: PerturbationGraph):
+    graph = perturbation_graph.as_perturbed()
     colored_vertex = graph.fix_vertex(vertex)
     fwd = graph.post(colored_vertex)
     bwd = graph.pre(colored_vertex)
@@ -38,13 +39,14 @@ def timeout_handler(_num, _stack):
 
 
 def measure(fun):
+    logging.info("Starting measuring")
     start = time.time()
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(TIMEOUT_SECS)
     try:
         fun()
     except Exception as ex:
-        if "FUBAR" in ex:
+        if "FUBAR" in str(ex):
             return "N/A"
         else:
             raise ex
@@ -69,13 +71,15 @@ def benchmark_model(model_file_path):
 
     logging.info(f"colors count: {symbolic_async_graph.unit_colored_vertices().cardinality() / vars_count}")
     logging.info(f"total cardinality: {symbolic_async_graph.unit_colored_vertices().cardinality()}")
+
+    logging.info(find_attractors(symbolic_async_graph))
     witness = SymbolicAsyncGraph(symbolic_async_graph.pick_witness(symbolic_async_graph.unit_colors()))
     attractor_vertices = [a.pick_vertex().vertices().vertices()[0] for a in find_attractors(witness)]
     logging.info(f"attractor count: {len(attractor_vertices)}")
 
     for i, target in enumerate(attractor_vertices[:10]):
         perturbation_graph = PerturbationGraph(boolean_network)
-        colors = attractor_colors(target, symbolic_async_graph)
+        colors = attractor_colors(target, perturbation_graph)
         for j, source in enumerate(attractor_vertices[:10]):
             if i == j:
                 continue
@@ -88,9 +92,11 @@ def benchmark_model(model_file_path):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+                        level=logging.INFO,
+                        datefmt='%Y-%m-%d %H:%M:%S')
     model_files = get_model_files()
-    header = ['model', 'target_ix', 'source_ix', 'one_step_time', 'permanent_time', 'temporary_time']
+    header = [['model', 'target_ix', 'source_ix', 'one_step_time', 'permanent_time', 'temporary_time']]
     all_results = sum([benchmark_model(mf) for mf in model_files], header)
     with open("out.csv", "w", newline="") as f:
         writer = csv.writer(f)
